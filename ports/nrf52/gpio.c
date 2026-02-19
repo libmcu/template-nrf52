@@ -11,11 +11,11 @@
 #include "nrf_gpio.h"
 #include "pinmap.h"
 
-struct gpio {
-	struct gpio_api api;
+struct lm_gpio {
+	struct lm_gpio_api api;
 
 	uint16_t pin;
-	gpio_callback_t callback;
+	lm_gpio_callback_t callback;
 	void *callback_ctx;
 };
 
@@ -24,7 +24,7 @@ static void enable_output(uint32_t pin_number)
 	nrf_gpio_cfg_output(pin_number);
 }
 
-static int enable_gpio(struct gpio *self)
+static int enable_gpio(struct lm_gpio *self)
 {
 	switch (self->pin) {
 	case PINMAP_LED:
@@ -37,13 +37,13 @@ static int enable_gpio(struct gpio *self)
 	return 0;
 }
 
-static int disable_gpio(struct gpio *self)
+static int disable_gpio(struct lm_gpio *self)
 {
 	nrf_gpio_cfg_default(self->pin);
 	return 0;
 }
 
-static int set_gpio(struct gpio *self, int value)
+static int set_gpio(struct lm_gpio *self, int value)
 {
 	if (value) {
 		nrf_gpio_pin_set(self->pin);
@@ -53,7 +53,7 @@ static int set_gpio(struct gpio *self, int value)
 	return 0;
 }
 
-static int get_gpio(struct gpio *self)
+static int get_gpio(struct lm_gpio *self)
 {
 	if (nrf_gpio_pin_dir_get(self->pin) == NRF_GPIO_PIN_DIR_OUTPUT) {
 		return (int)nrf_gpio_pin_out_read(self->pin);
@@ -62,19 +62,19 @@ static int get_gpio(struct gpio *self)
 	//return (int)nrf_gpio_pin_sense_get(self->pin);
 }
 
-static int register_callback(struct gpio *self,
-		gpio_callback_t callback, void *ctx)
+static int register_callback(struct lm_gpio *self,
+		lm_gpio_callback_t callback, void *ctx)
 {
 	self->callback = callback;
 	self->callback_ctx = ctx;
 	return 0;
 }
 
-struct gpio *gpio_create(uint16_t pin)
+struct lm_gpio *lm_gpio_create(uint16_t pin)
 {
-	static struct gpio led;
+	static struct lm_gpio led;
 
-	struct gpio *p;
+	struct lm_gpio *p;
 
 	switch (pin) {
 	case PINMAP_LED:
@@ -86,7 +86,7 @@ struct gpio *gpio_create(uint16_t pin)
 
 	p->pin = pin;
 
-	p->api = (struct gpio_api) {
+	p->api = (struct lm_gpio_api) {
 		.enable = enable_gpio,
 		.disable = disable_gpio,
 		.set = set_gpio,
@@ -97,7 +97,7 @@ struct gpio *gpio_create(uint16_t pin)
 	return p;
 }
 
-void gpio_delete(struct gpio *self)
+void lm_gpio_delete(struct lm_gpio *self)
 {
 	(void)self;
 }

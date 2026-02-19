@@ -13,8 +13,8 @@ PLATFORM_SPECIFIC := $(PORT_ROOT)/platform.mk
 
 # Third Party
 LIBMCU_ROOT ?= $(BASEDIR)/external/libmcu
-include $(LIBMCU_ROOT)/projects/modules.mk
-include $(LIBMCU_ROOT)/projects/interfaces.mk
+include $(LIBMCU_ROOT)/project/modules.mk
+include $(LIBMCU_ROOT)/project/interfaces.mk
 
 include ports/rtt/sources.mk
 
