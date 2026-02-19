@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 
-include(${CMAKE_SOURCE_DIR}/projects/arch/cm4f.cmake)
+include(${CMAKE_SOURCE_DIR}/projects/arch/arm/cm4f.cmake)
 
 set(src-dirs src)
 foreach(dir ${src-dirs})
@@ -31,13 +31,22 @@ set(TARGET_PLATFORM nrf52)
 set(PLATFORM_SPECIFIC ${CMAKE_SOURCE_DIR}/ports/${TARGET_PLATFORM})
 set(LD_SCRIPT ${PLATFORM_SPECIFIC}/nrf52840.ld)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -include libmcu/assert.h")
+add_library(platform_options INTERFACE)
+target_compile_definitions(platform_options INTERFACE ${APP_DEFS})
+target_include_directories(platform_options INTERFACE ${APP_INCS})
+target_compile_options(platform_options INTERFACE
+	$<$<COMPILE_LANGUAGE:C>:-include libmcu/assert.h>
+	$<$<COMPILE_LANGUAGE:CXX>:-include libmcu/assert.h>
+)
+target_link_libraries(platform_options INTERFACE arch_options)
+
 set(elf_file ${PROJECT_NAME}.elf)
 add_executable(${elf_file} ${APP_SRCS})
-target_include_directories(${elf_file} PRIVATE ${APP_INCS})
-target_compile_definitions(${elf_file} PRIVATE ${APP_DEFS})
 target_link_options(${elf_file} PRIVATE -T${LD_SCRIPT})
 target_link_libraries(${elf_file} PRIVATE
+	platform_options
+	warnings
+
 	-Wl,--cref
 	-Wl,--Map=\"${CMAKE_BINARY_DIR}/${PROJECT_NAME}.map\"
 
@@ -46,20 +55,18 @@ target_link_libraries(${elf_file} PRIVATE
 )
 
 # Third Party
-add_subdirectory(external/libmcu)
-target_compile_definitions(libmcu PUBLIC
-	METRICS_USER_DEFINES=\"${PROJECT_SOURCE_DIR}/include/metrics.def\"
-	${APP_DEFS}
-)
 target_include_directories(libmcu PUBLIC
 	${CMAKE_SOURCE_DIR}/external/libmcu/modules/common/include/libmcu/posix)
+target_link_libraries(libmcu PUBLIC platform_options)
 
 add_subdirectory(ports/rtt)
 target_link_libraries(rtt PUBLIC libmcu)
+target_link_libraries(rtt PUBLIC platform_options)
 
 # Platform Specific
 add_subdirectory(${PLATFORM_SPECIFIC})
 target_link_libraries(${TARGET_PLATFORM} PUBLIC libmcu)
+target_link_libraries(${TARGET_PLATFORM} PUBLIC platform_options)
 
 add_custom_target(${PROJECT_NAME}.bin ALL DEPENDS ${elf_file})
 add_custom_target(${PROJECT_NAME}.hex ALL DEPENDS ${elf_file})
@@ -68,24 +75,24 @@ add_custom_target(flash_softdevice)
 add_custom_target(flash_usb DEPENDS ${PROJECT_NAME}.bin)
 add_custom_target(gdb DEPENDS ${elf_file})
 
-add_custom_command(TARGET ${PROJECT_NAME}.hex
+add_custom_command(TARGET ${PROJECT_NAME}.hex POST_BUILD
 	COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:${elf_file}>
 			${PROJECT_NAME}.hex
 	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-add_custom_command(TARGET ${PROJECT_NAME}.bin
+add_custom_command(TARGET ${PROJECT_NAME}.bin POST_BUILD
 	COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:${elf_file}>
 			${PROJECT_NAME}.bin
 	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-add_custom_command(TARGET flash_usb
+add_custom_command(TARGET flash_usb POST_BUILD
 	USES_TERMINAL COMMAND
 		dfu-util --device 1209:e001 --alt 0 --download ${PROJECT_NAME}.bin
 )
 
-add_custom_command(TARGET flash
+add_custom_command(TARGET flash POST_BUILD
 	USES_TERMINAL
 	COMMAND
 		nrfjprog -f nrf52 --program ${PROJECT_NAME}.hex --sectorerase --verify
@@ -93,13 +100,13 @@ add_custom_command(TARGET flash
 		nrfjprog -f nrf52 --reset
 )
 
-add_custom_command(TARGET flash_softdevice
+add_custom_command(TARGET flash_softdevice POST_BUILD
 	USES_TERMINAL
 	COMMAND
 		nrfjprog -f nrf52 --program ${CMAKE_SOURCE_DIR}/external/nRF5_SDK_17.1.0_ddde560/components/softdevice/s140/hex/s140_nrf52_7.2.0_softdevice.hex --sectorerase --verify
 )
 
-add_custom_command(TARGET gdb
+add_custom_command(TARGET gdb POST_BUILD
 	USES_TERMINAL COMMAND
 		pyocd gdbserver -t nrf52840
 )

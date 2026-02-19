@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 
-add_compile_options(
+add_library(arch_common_options INTERFACE)
+target_compile_options(arch_common_options INTERFACE
 	-mthumb
 	-mabi=aapcs
 
@@ -16,7 +17,7 @@ add_compile_options(
 	-g3
 )
 
-add_link_options(
+target_link_options(arch_common_options INTERFACE
 	-mthumb
 	-mabi=aapcs
 	--specs=nano.specs
@@ -27,7 +28,7 @@ add_link_options(
 	-Wl,--print-memory-usage
 )
 
-link_libraries(
+target_link_options(arch_common_options INTERFACE
 	-Wl,--cref
 	-Wl,--Map=\"${CMAKE_BINARY_DIR}/${PROJECT_NAME}.map\"
 )

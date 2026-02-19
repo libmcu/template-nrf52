@@ -26,7 +26,7 @@ static size_t logging_stdout_writer(const void *data, size_t size)
 	buf[len] = '\0';
 
 #if defined(STDOUT_RTT)
-	return (size_t)SEGGER_RTT_Write(0, buf, len);
+	return SEGGER_RTT_Write(0, buf, len);
 #else
 	return (size_t)uart_write(uart2, buf, len);
 #endif

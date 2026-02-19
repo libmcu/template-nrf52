@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 
-include projects/arch/cm4f.mk
+include projects/arch/arm/cm4f.mk
 
 app-src-dirs := src
 APP_SRCS = $(foreach dir, $(addprefix $(BASEDIR)/, $(app-src-dirs)), \

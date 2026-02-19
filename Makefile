@@ -19,7 +19,7 @@ export Q
 include projects/version.mk
 include projects/defines.mk
 
-include projects/app.mk
+include projects/platforms/madi_nrf52840.mk
 
 include projects/toolchain.mk
 include projects/rules.mk

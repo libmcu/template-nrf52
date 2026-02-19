@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 
-include projects/arch/common.mk
+include projects/arch/arm/common.mk
 
 CFLAGS += \
 	-mcpu=cortex-m4 \
