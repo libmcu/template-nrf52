@@ -11,15 +11,18 @@ external QSPI NOR flash for OTA updates, and automatic rollback on boot failure.
 ├── include/                       # Public headers (version.h, metrics.def …)
 ├── src/                           # Application sources
 ├── ports/
+│   ├── nrf52/                     # nRF5 SDK port (legacy)
 │   └── zephyr/
 │       ├── boards/nordic/madi_nrf52840/  # Board definition (DTS, Kconfig)
 │       ├── prj.conf               # Application Kconfig
 │       └── mcuboot.conf           # MCUboot Kconfig overlay
 ├── projects/
 │   └── platforms/
-│       └── zephyr.cmake           # Zephyr build wiring (signing key, modules)
+│       ├── zephyr.cmake           # Zephyr build wiring (signing key, modules)
+│       └── madi_nrf52840.cmake    # nRF5 SDK CMake platform config
 ├── secrets/
 │   └── dfu_signing_dev.key        # Dev signing key — never commit to VCS
+├── tests/                         # Unit tests (Make-based)
 └── external/                      # libmcu and other third-party sources
 ```
 
@@ -74,6 +77,7 @@ sudo apt install ninja-build    # Ubuntu / Debian
 | Tool | Use |
 |------|-----|
 | `nrfjprog` | J-Link / nRF5 — initial flash and app updates |
+| `pyocd` | OpenOCD-based alternative to nrfjprog |
 | `mcumgr` | OTA / DFU over serial or BLE |
 
 Install mcumgr:
@@ -112,6 +116,8 @@ Build MCUboot and the app, then flash everything to a blank device.
 
 ### 1. Build MCUboot
 
+#### west
+
 ```bash
 west build -b madi_nrf52840 -d build/mcuboot \
     $ZEPHYR_BASE/../bootloader/mcuboot/boot/zephyr \
@@ -120,17 +126,41 @@ west build -b madi_nrf52840 -d build/mcuboot \
     "-DCONFIG_BOOT_SIGNATURE_KEY_FILE=\"$(pwd)/secrets/dfu_signing_dev.key\""
 ```
 
+#### CMake
+
+```bash
+cmake -B build/mcuboot \
+      -S $ZEPHYR_BASE/../bootloader/mcuboot/boot/zephyr \
+      -DBOARD=madi_nrf52840 \
+      -DBOARD_ROOT=$(pwd)/ports/zephyr \
+      "-DEXTRA_CONF_FILE=$(pwd)/ports/zephyr/mcuboot.conf" \
+      "-DCONFIG_BOOT_SIGNATURE_KEY_FILE=$(pwd)/secrets/dfu_signing_dev.key" \
+      -G Ninja
+cmake --build build/mcuboot
+```
+
 Output: `build/mcuboot/zephyr/zephyr.hex`
 
 ### 2. Build App
 
+#### west
+
 ```bash
+# First time — configure and build
 west build -b madi_nrf52840 -d build/app
-
-or
-
+# or
 west build -b madi_nrf52840 -d build/app \
     -- -DBOARD_ROOT=$(pwd)/ports/zephyr
+
+# Subsequent builds — configuration is cached
+west build -d build/app
+```
+
+#### CMake
+
+```bash
+cmake -B build/app -DTARGET_PLATFORM=madi_nrf52840 -G Ninja
+cmake --build build/app
 ```
 
 Signed outputs in `build/app/zephyr/`:
@@ -143,12 +173,14 @@ Signed outputs in `build/app/zephyr/`:
 
 ### 3. Flash (first-time)
 
+#### nrfjprog
+
 ```bash
 # Erase chip
 nrfjprog --family NRF52 --eraseall
 
 # Flash MCUboot
-west flash -d build/mcuboot
+nrfjprog --family NRF52 --program build/mcuboot/zephyr/zephyr.hex --verify
 
 # Flash confirmed app to slot0 (--sectorerase preserves MCUboot at 0x0)
 nrfjprog --family NRF52 \
@@ -156,6 +188,22 @@ nrfjprog --family NRF52 \
     --verify --sectorerase
 
 nrfjprog --family NRF52 --reset
+```
+
+#### west
+
+```bash
+nrfjprog --family NRF52 --eraseall
+west flash -d build/mcuboot
+west flash -d build/app
+```
+
+#### pyocd
+
+```bash
+pyocd flash -t nrf52840 --erase chip build/mcuboot/zephyr/zephyr.hex
+pyocd flash -t nrf52840 --erase sector \
+    build/app/zephyr/zephyr.signed.confirmed.hex
 ```
 
 ---
@@ -166,19 +214,49 @@ MCUboot stays on the device. Only rebuild and reflash the app.
 
 ### Build App
 
+#### west
+
 ```bash
 west build -d build/app
 ```
 
-Board and configuration are cached; `-b` and `--` are not needed again.
+#### CMake
+
+```bash
+cmake --build build/app
+```
+
+#### Make (nRF5 SDK — no MCUboot)
+
+```bash
+make
+```
+
+> The Make build targets the nRF5 SDK directly (no Zephyr, no MCUboot).
+> See [Legacy Build (nRF5 SDK)](#legacy-build-nrf5-sdk) for details.
 
 ### Flash App
+
+#### nrfjprog
 
 ```bash
 nrfjprog --family NRF52 \
     --program build/app/zephyr/zephyr.signed.confirmed.hex \
     --verify --sectorerase
 nrfjprog --family NRF52 --reset
+```
+
+#### west
+
+```bash
+west flash -d build/app
+```
+
+#### pyocd
+
+```bash
+pyocd flash -t nrf52840 --erase sector \
+    build/app/zephyr/zephyr.signed.confirmed.hex
 ```
 
 ### OTA / DFU
@@ -236,11 +314,26 @@ MCUboot uses **swap-using-move**: slot 0 and slot 1 must be identical in size
 The build uses `secrets/dfu_signing_dev.key` (ECDSA P-256) by default,
 configured in `projects/platforms/zephyr.cmake`.
 
+### Check an existing key
+
+```bash
+openssl pkey -in secrets/dfu_signing_dev.key -text -noout | head -5
+# ECDSA P-256:  "Public Key Algorithm: id-ecPublicKey" + "ASN1 OID: prime256v1"
+# RSA-2048:     "Public-Key: (2048 bit)"
+# Ed25519:      "Public Key Algorithm: ED25519"
+```
+
 ### Generate a new key
 
 ```bash
-# ECDSA P-256 — matches mcuboot.conf default
+# ECDSA P-256 — recommended (fast on Cortex-M4, matches mcuboot.conf default)
 imgtool keygen -k secrets/dfu_signing_prod.pem -t ecdsa-p256
+
+# Ed25519 — smallest MCUboot footprint
+imgtool keygen -k secrets/dfu_signing_prod.pem -t ed25519
+
+# RSA-2048 — most conservative choice
+imgtool keygen -k secrets/dfu_signing_prod.pem -t rsa-2048
 ```
 
 > ⚠️ Never commit private keys. Ensure `secrets/*.pem` and `secrets/*.key`
@@ -273,35 +366,51 @@ bootloader rejects images signed with a different key.
 
 ---
 
-## Reference
+## Legacy Build (nRF5 SDK)
 
-### CMake (alternative to west)
+Standalone build without Zephyr or MCUboot, targeting the nRF5 SDK directly.
 
-#### Build MCUboot
+### Build
 
-```bash
-cmake -B build/mcuboot \
-      -S $ZEPHYR_BASE/../bootloader/mcuboot/boot/zephyr \
-      -DBOARD=madi_nrf52840 \
-      -DBOARD_ROOT=$(pwd)/ports/zephyr \
-      "-DEXTRA_CONF_FILE=$(pwd)/ports/zephyr/mcuboot.conf" \
-      "-DCONFIG_BOOT_SIGNATURE_KEY_FILE=$(pwd)/secrets/dfu_signing_dev.key" \
-      -G Ninja
-cmake --build build/mcuboot
-```
-
-#### Build App
+#### CMake
 
 ```bash
-cmake -B build/app -DTARGET_PLATFORM=madi_nrf52840 -G Ninja
-cmake --build build/app
+cmake -S . -B build -DTARGET_PLATFORM=madi_nrf52840
+cmake --build build
 ```
 
-### Board notes
+Build outputs: `build/madi.elf`, `build/madi.hex`, `build/madi.bin`
+
+#### Make
+
+```bash
+make
+```
+
+### Flash
+
+#### CMake targets
+
+```bash
+cmake --build build --target flash          # nrfjprog
+cmake --build build --target flash_usb      # dfu-util
+cmake --build build --target flash_softdevice
+```
+
+### Tests
+
+#### Make
+
+```bash
+make test
+make coverage
+```
+
+---
+
+## Board Notes
 
 - **Board name**: `madi_nrf52840`
 - **Console**: RTT (Segger J-Link) — UART disabled by default
 - **LED**: P0.20 (active-low, alias `led0`)
 - **QSPI flash**: CS=P0.07, SCK=P0.08, IO0=P1.09, IO1=P1.08, IO2=P0.12, IO3=P0.06
-
-

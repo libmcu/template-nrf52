@@ -69,7 +69,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 		list(APPEND COMMON_COMPILE_OPTIONS
 			-Wstack-usage=1024
 			-Wsuggest-attribute=noreturn
-			-Wuseless-cast
+			#-Wuseless-cast
 			-Wsuggest-final-types
 			-Wsuggest-final-methods
 		)
