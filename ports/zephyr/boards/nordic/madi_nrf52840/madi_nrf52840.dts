@@ -39,22 +39,63 @@
 		#size-cells = <1>;
 
 		/*
-		 * No MCUboot, no SoftDevice.
-		 * App runs directly from 0x0 (full chip erase required before
-		 * first flash to remove any previously programmed SoftDevice).
+		 * MCUboot bootloader + primary slot layout.
 		 *
-		 * nRF52840 flash: 1 MiB total
-		 *   0x00000000  Application   960 KiB
-		 *   0x000F0000  Storage        64 KiB
+		 * nRF52840 internal flash: 1 MiB total
+		 *   0x00000000   48 KiB  MCUboot bootloader
+		 *   0x0000C000  976 KiB  Slot 0 (pad 512B + app 975.5KiB)
 		 */
-		slot0_partition: partition@0 {
-			label = "image-0";
-			reg = <0x00000000 0x000F0000>; /* 960 KiB */
+		boot_partition: partition@0 {
+			label = "mcuboot";
+			reg = <0x00000000 0x0000C000>; /* 48 KiB */
 		};
 
-		storage_partition: partition@f0000 {
-			label = "storage";
-			reg = <0x000F0000 0x00010000>; /* 64 KiB */
+		slot0_partition: partition@c000 {
+			label = "image-0";
+			reg = <0x0000C000 0x000F4000>; /* 976 KiB */
+		};
+	};
+};
+
+&qspi {
+	status = "okay";
+	pinctrl-0 = <&qspi_default>;
+	pinctrl-1 = <&qspi_sleep>;
+	pinctrl-names = "default", "sleep";
+
+	mx25r16: mx25r1635f@0 {
+		compatible = "nordic,qspi-nor";
+		reg = <0>;
+		writeoc = "pp4io";
+		readoc = "read4io";
+		sck-frequency = <8000000>;
+		jedec-id = [c2 28 15];
+		size-in-bytes = <2097152>; /* 16 Mbit = 2 MiB */
+		has-dpd;
+		t-enter-dpd = <10000>;
+		t-exit-dpd = <35000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			/*
+			 * External flash (MX25R1635F, 2 MiB):
+			 *   0x00000000  976 KiB  Slot 1 (MCUboot secondary / OTA)
+			 *   0x000F4000    1 MiB  Storage (LittleFS)
+			 *
+			 * Slot 1 == Slot 0 in size (0xF4000) required for swap-using-move.
+			 */
+			slot1_partition: partition@0 {
+				label = "image-1";
+				reg = <0x00000000 0x000F4000>; /* 976 KiB */
+			};
+
+			storage_partition: partition@f4000 {
+				label = "storage";
+				reg = <0x000F4000 0x00100000>; /* 1 MiB */
+			};
 		};
 	};
 };

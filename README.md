@@ -1,233 +1,307 @@
 # madi-nrf52
 
-Firmware project targeting nRF52 (Cortex-M4F) with a CMake-first build and
-optional Make-based workflow. This guide is focused on getting a new developer
-productive quickly.
+Firmware for MADI nRF52840 (Cortex-M4F). Zephyr-based with MCUboot bootloader,
+external QSPI NOR flash for OTA updates, and automatic rollback on boot failure.
 
 ## Project Structure
 
 ```
 .
-├── CMakeLists.txt                 # Top-level CMake entry
-├── include/                       # Public headers (version.h, metrics.def, etc.)
+├── CMakeLists.txt                 # Top-level entry (Zephyr or nRF5 SDK)
+├── include/                       # Public headers (version.h, metrics.def …)
 ├── src/                           # Application sources
-├── ports/                         # Platform-specific ports (nrf52, rtt, zephyr)
-├── projects/                      # Build system modules (arch, platforms, warnings)
-├── external/                      # Third-party sources (libmcu, SDKs)
-├── tests/                         # Unit tests (Make-based)
-└── Makefile                       # Legacy Make build (optional)
+├── ports/
+│   └── zephyr/
+│       ├── boards/nordic/madi_nrf52840/  # Board definition (DTS, Kconfig)
+│       ├── prj.conf               # Application Kconfig
+│       └── mcuboot.conf           # MCUboot Kconfig overlay
+├── projects/
+│   └── platforms/
+│       └── zephyr.cmake           # Zephyr build wiring (signing key, modules)
+├── secrets/
+│   └── dfu_signing_dev.key        # Dev signing key — never commit to VCS
+└── external/                      # libmcu and other third-party sources
 ```
 
-Key build files:
-- `projects/arch/arm/*.cmake`: architecture options (common, cm3, cm4f)
-- `projects/platforms/madi_nrf52840.cmake`: nRF52840 build + flash targets
-- `projects/warnings.cmake`: warnings interface library
-- `projects/external.cmake`: third-party library wiring (libmcu)
+Key files:
 
-## Prerequisites
-
-### Toolchain
-Install the ARM GNU toolchain and ensure these binaries are on PATH:
-- `arm-none-eabi-gcc`, `arm-none-eabi-g++`, `arm-none-eabi-objcopy`
-
-This repo expects the toolchain via `projects/arch/arm/arm-none-eabi-gcc.cmake`.
-
-### Flashing Tools (nRF52)
-
-Choose based on your setup:
-- **J-Link / nRFJProg**: `nrfjprog` (used by `flash` and `flash_softdevice`)
-- **USB DFU**: `dfu-util` (used by `flash_usb`)
-- **GDB server**: `pyocd` (used by `gdb` target)
-
-## Build (CMake)
-
-From repo root:
-
-```bash
-cmake -S . -B build -DTARGET_PLATFORM=madi_nrf52840
-cmake --build build
-```
-
-Build outputs:
-- `build/madi.elf`
-- `build/madi.hex`
-- `build/madi.bin`
-- `build/madi.map`
-
-### Targets
-
-```bash
-# Build binary artifacts
-cmake --build build --target madi.elf
-cmake --build build --target madi.hex
-cmake --build build --target madi.bin
-
-# Flashing
-cmake --build build --target flash          # nrfjprog .hex
-cmake --build build --target flash_usb      # dfu-util .bin
-cmake --build build --target flash_softdevice
-
-# Debug (GDB server)
-cmake --build build --target gdb            # pyocd gdbserver -t nrf52840
-```
-
-> Note: If you switch compiler flags or architecture options, clean the build
-> directory (`rm -rf build`) to avoid stale objects.
-
-## Build (Makefile - optional)
-
-```bash
-make
-```
-
-Make-based configuration lives under `projects/*.mk` and mirrors the CMake
-workflow. Tests are also Make-based:
-
-```bash
-make test
-make coverage
-```
-
-## Configuration
-
-- Platform selection is controlled by `TARGET_PLATFORM`.
-- For CMake: `-DTARGET_PLATFORM=madi_nrf52840`
-- Some values are derived from `include/version.h` and `projects/version.cmake`.
-
-## Common Issues
-
-### ABI mismatch (VFP / Thumb)
-If you see linker errors like:
-```
-uses VFP register arguments, ... does not
-Unknown destination type (ARM/Thumb)
-```
-it indicates mixed architecture/ABI objects. Clean build and ensure all targets
-inherit the same architecture options via the interface libraries.
+| File | Purpose |
+|------|---------|
+| `ports/zephyr/boards/nordic/madi_nrf52840/madi_nrf52840.dts` | Flash partitions, QSPI, GPIO |
+| `ports/zephyr/prj.conf` | Application Kconfig |
+| `ports/zephyr/mcuboot.conf` | MCUboot Kconfig (signature algorithm, swap, QSPI) |
+| `projects/platforms/zephyr.cmake` | Signing key path, Zephyr module list |
 
 ---
 
-## Zephyr OS (Freestanding)
+## Prerequisites
 
-This project supports building with Zephyr OS in **freestanding mode** — no
-west workspace is required inside the repo. The Zephyr installation lives
-outside the project directory.
+### 1. Zephyr workspace
 
-### Prerequisites
+Install the Zephyr SDK outside this repo using
+[west](https://docs.zephyrproject.org/latest/develop/getting_started/index.html):
 
-#### 1. Zephyr SDK / Zephyr source
+```bash
+west init ~/Work/c/zephyr
+cd ~/Work/c/zephyr
+west update
+```
 
-Install Zephyr 3.7 (or later) somewhere outside this repo, e.g.:
+Expected layout:
 
 ```
 ~/Work/c/zephyr/
-├── zephyr/          # Zephyr kernel source (ZEPHYR_BASE)
+├── zephyr/          # Zephyr kernel ($ZEPHYR_BASE)
 ├── modules/         # hal_nordic, mbedtls, littlefs, segger …
 └── bootloader/      # mcuboot
 ```
 
-Follow the [Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html) to set up the workspace (west init / west update).
+### 2. ARM GNU Toolchain (GCC 12+)
 
-#### 2. ARM GNU Toolchain
+Download **arm-none-eabi** from
+[developer.arm.com](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads)
+and extract, e.g. to `~/.local/gcc-arm-none-eabi/`.
 
-Download the **arm-none-eabi** toolchain (GCC 12+) and extract it, e.g.:
-
-```
-~/.local/gcc-arm-none-eabi/
-├── bin/
-│   ├── arm-none-eabi-gcc
-│   └── …
-```
-
-Official download: <https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads>
-
-#### 3. Ninja
+### 3. Build tools
 
 ```bash
-brew install ninja          # macOS
-sudo apt install ninja-build  # Ubuntu/Debian
+brew install ninja              # macOS
+sudo apt install ninja-build    # Ubuntu / Debian
 ```
 
-#### 4. Flash Tools
+### 4. Flash tools
 
 | Tool | Use |
 |------|-----|
-| `nrfjprog` | J-Link / nRF5 programming (recommended) |
-| `pyocd` | Alternative OpenOCD-based flashing |
+| `nrfjprog` | J-Link / nRF5 — initial flash and app updates |
+| `mcumgr` | OTA / DFU over serial or BLE |
 
-### Environment Variables
-
-Set these in your shell (or add to `.bashrc` / `.zshrc`):
+Install mcumgr:
 
 ```bash
+pip install mcumgr
+```
+
+### 5. imgtool
+
+```bash
+pip install -r $ZEPHYR_BASE/../bootloader/mcuboot/scripts/requirements.txt
+```
+
+---
+
+## Environment Setup
+
+Add to your shell profile (`.bashrc` / `.zshrc`) and reload:
+
+```bash
+python3 -m venv ./.venv
+source ./.venv/bin/activate
+export PATH=.venv/bin:$PATH
+
 export ZEPHYR_BASE=~/Work/c/zephyr/zephyr
 export ZEPHYR_TOOLCHAIN_VARIANT=gnuarmemb
 export GNUARMEMB_TOOLCHAIN_PATH=~/.local/gcc-arm-none-eabi
 ```
 
-Adjust paths to match your actual installation locations.
+---
 
-### Build (Zephyr)
+## Initial Setup
+
+Build MCUboot and the app, then flash everything to a blank device.
+
+### 1. Build MCUboot
 
 ```bash
-# Configure (first time or after Kconfig/DTS changes)
-cmake -B build/madi_nrf52840_zephyr \
-      -DTARGET_PLATFORM=madi_nrf52840 \
-      -G Ninja
-
-# Build
-cmake --build build/madi_nrf52840_zephyr
+west build -b madi_nrf52840 -d build/mcuboot \
+    $ZEPHYR_BASE/../bootloader/mcuboot/boot/zephyr \
+    -- -DBOARD_ROOT=$(pwd)/ports/zephyr \
+    "-DEXTRA_CONF_FILE=$(pwd)/ports/zephyr/mcuboot.conf" \
+    "-DCONFIG_BOOT_SIGNATURE_KEY_FILE=\"$(pwd)/secrets/dfu_signing_dev.key\""
 ```
 
-Or in a single one-liner with inline env vars:
+Output: `build/mcuboot/zephyr/zephyr.hex`
+
+### 2. Build App
 
 ```bash
-ZEPHYR_BASE=~/Work/c/zephyr/zephyr \
-ZEPHYR_TOOLCHAIN_VARIANT=gnuarmemb \
-GNUARMEMB_TOOLCHAIN_PATH=~/.local/gcc-arm-none-eabi \
-cmake -B build/madi_nrf52840_zephyr -DTARGET_PLATFORM=madi_nrf52840 -G Ninja && \
-cmake --build build/madi_nrf52840_zephyr
+west build -b madi_nrf52840 -d build/app
+
+or
+
+west build -b madi_nrf52840 -d build/app \
+    -- -DBOARD_ROOT=$(pwd)/ports/zephyr
 ```
 
-Build outputs in `build/madi_nrf52840_zephyr/zephyr/`:
-- `madi.elf` — debug ELF
-- `madi.hex` — Intel HEX for flashing
-- `madi.bin` — raw binary
+Signed outputs in `build/app/zephyr/`:
 
-### Flash (Zephyr)
+| File | Use |
+|------|-----|
+| `zephyr.signed.hex` | Test image — reverts on next reset if not confirmed |
+| `zephyr.signed.bin` | Signed binary for OTA upload |
+| `zephyr.signed.confirmed.hex` | Pre-confirmed — no runtime confirmation needed |
 
-#### J-Link / nrfjprog
+### 3. Flash (first-time)
 
 ```bash
-# Erase + program + reset
+# Erase chip
 nrfjprog --family NRF52 --eraseall
-nrfjprog --family NRF52 --program build/madi_nrf52840_zephyr/zephyr/madi.hex --verify
+
+# Flash MCUboot
+west flash -d build/mcuboot
+
+# Flash confirmed app to slot0 (--sectorerase preserves MCUboot at 0x0)
+nrfjprog --family NRF52 \
+    --program build/app/zephyr/zephyr.signed.confirmed.hex \
+    --verify --sectorerase
+
 nrfjprog --family NRF52 --reset
 ```
 
-#### west (if you have a west workspace)
+---
+
+## Development Workflow
+
+MCUboot stays on the device. Only rebuild and reflash the app.
+
+### Build App
 
 ```bash
-west flash --build-dir build/madi_nrf52840_zephyr
+west build -d build/app
 ```
 
-#### pyocd
+Board and configuration are cached; `-b` and `--` are not needed again.
+
+### Flash App
 
 ```bash
-pyocd flash -t nrf52840 build/madi_nrf52840_zephyr/zephyr/madi.hex
+nrfjprog --family NRF52 \
+    --program build/app/zephyr/zephyr.signed.confirmed.hex \
+    --verify --sectorerase
+nrfjprog --family NRF52 --reset
 ```
 
-### Zephyr-specific Notes
+### OTA / DFU
 
-- **Board name**: `madi_nrf52840` (defined in `ports/zephyr/boards/nordic/madi_nrf52840/`)
-- **Kconfig**: `ports/zephyr/prj.conf`
-- **UART console**: TX = P0.23, RX = P0.25 (115200 baud)
-- **LED**: P0.20 (active-low, alias `led0`)
-- The `ZEPHYR_TOOLCHAIN_VARIANT` environment variable is what switches the
-  build into Zephyr mode. If it is unset, CMake falls back to the nRF5 SDK
-  standalone build.
+Upload the signed image to slot 1 and trigger a swap on next boot:
+
+```bash
+# Upload image to slot 1
+mcumgr --conntype serial --connstring /dev/ttyUSB0,baud=115200 \
+    image upload build/app/zephyr/zephyr.signed.bin
+
+# List images — copy the hash of the uploaded image
+mcumgr --conntype serial --connstring /dev/ttyUSB0,baud=115200 \
+    image list
+
+# Mark as pending (test mode — reverts if not confirmed before next reset)
+mcumgr --conntype serial --connstring /dev/ttyUSB0,baud=115200 \
+    image test <hash>
+
+# Trigger swap
+mcumgr --conntype serial --connstring /dev/ttyUSB0,baud=115200 reset
+
+# After the new image boots successfully, confirm it permanently
+mcumgr --conntype serial --connstring /dev/ttyUSB0,baud=115200 \
+    image confirm
+```
+
+Or confirm from application code:
+
+```c
+boot_write_img_confirmed();   /* requires CONFIG_MCUBOOT_IMG_MANAGER=y */
+```
+
+> **Rollback**: If confirmation is not received before the next reset,
+> MCUboot automatically reverts to the previous image in slot 0.
 
 ---
 
-If you're new to the project, start with the CMake build flow above, then
-flash via `flash` or `flash_usb` depending on your device setup.
+## Flash Partition Layout
+
+| Flash | Partition | Label | Offset | Size |
+|-------|-----------|-------|--------|------|
+| Internal — nRF52840 (1 MiB) | `boot_partition` | `mcuboot` | `0x000000` | 48 KiB |
+| Internal | `slot0_partition` | `image-0` | `0x00C000` | 976 KiB |
+| External — MX25R1635F (2 MiB) | `slot1_partition` | `image-1` | `0x000000` | 976 KiB |
+| External | `storage_partition` | `storage` | `0x0F4000` | 1 MiB |
+
+MCUboot uses **swap-using-move**: slot 0 and slot 1 must be identical in size
+(976 KiB). No scratch partition is required.
+
+---
+
+## Signing Key
+
+The build uses `secrets/dfu_signing_dev.key` (ECDSA P-256) by default,
+configured in `projects/platforms/zephyr.cmake`.
+
+### Generate a new key
+
+```bash
+# ECDSA P-256 — matches mcuboot.conf default
+imgtool keygen -k secrets/dfu_signing_prod.pem -t ecdsa-p256
+```
+
+> ⚠️ Never commit private keys. Ensure `secrets/*.pem` and `secrets/*.key`
+> are in `.gitignore`.
+
+### Switch to a different key
+
+Update two places:
+
+1. **`projects/platforms/zephyr.cmake`** — app signing key:
+
+   ```cmake
+   set(MCUBOOT_SIGNATURE_KEY_FILE
+       "${CMAKE_CURRENT_LIST_DIR}/../../secrets/dfu_signing_prod.pem"
+       CACHE STRING "MCUboot signing key" FORCE)
+   ```
+
+2. **MCUboot build** — pass the new key via `-DCONFIG_BOOT_SIGNATURE_KEY_FILE`
+   and update `CONFIG_BOOT_SIGNATURE_TYPE_*` in `ports/zephyr/mcuboot.conf`
+   if the algorithm changes:
+
+   | Option | Algorithm |
+   |--------|-----------|
+   | `CONFIG_BOOT_SIGNATURE_TYPE_ECDSA_P256=y` | ECDSA P-256 (default) |
+   | `CONFIG_BOOT_SIGNATURE_TYPE_ED25519=y` | Ed25519 |
+   | `CONFIG_BOOT_SIGNATURE_TYPE_RSA=y` | RSA-2048 |
+
+Rebuild and reflash MCUboot after any key or algorithm change — the old
+bootloader rejects images signed with a different key.
+
+---
+
+## Reference
+
+### CMake (alternative to west)
+
+#### Build MCUboot
+
+```bash
+cmake -B build/mcuboot \
+      -S $ZEPHYR_BASE/../bootloader/mcuboot/boot/zephyr \
+      -DBOARD=madi_nrf52840 \
+      -DBOARD_ROOT=$(pwd)/ports/zephyr \
+      "-DEXTRA_CONF_FILE=$(pwd)/ports/zephyr/mcuboot.conf" \
+      "-DCONFIG_BOOT_SIGNATURE_KEY_FILE=$(pwd)/secrets/dfu_signing_dev.key" \
+      -G Ninja
+cmake --build build/mcuboot
+```
+
+#### Build App
+
+```bash
+cmake -B build/app -DTARGET_PLATFORM=madi_nrf52840 -G Ninja
+cmake --build build/app
+```
+
+### Board notes
+
+- **Board name**: `madi_nrf52840`
+- **Console**: RTT (Segger J-Link) — UART disabled by default
+- **LED**: P0.20 (active-low, alias `led0`)
+- **QSPI flash**: CS=P0.07, SCK=P0.08, IO0=P1.09, IO1=P1.08, IO2=P0.12, IO3=P0.06
+
+
