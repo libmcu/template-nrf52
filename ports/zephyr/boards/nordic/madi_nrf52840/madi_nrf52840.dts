@@ -1,0 +1,81 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Kyunghwan Kwon <k@libmcu.org>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+/dts-v1/;
+#include <nordic/nrf52840_qiaa.dtsi>
+#include "madi_nrf52840-pinctrl.dtsi"
+
+/ {
+	model = "MADI nRF52840";
+	compatible = "libmcu,madi-nrf52840";
+
+	chosen {
+		zephyr,sram           = &sram0;
+		zephyr,flash          = &flash0;
+		zephyr,code-partition = &slot0_partition;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led0: led_0 {
+			gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
+			label = "LED";
+		};
+	};
+
+	aliases {
+		led0      = &led0;
+		watchdog0 = &wdt0;
+	};
+};
+
+&flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/*
+		 * No MCUboot, no SoftDevice.
+		 * App runs directly from 0x0 (full chip erase required before
+		 * first flash to remove any previously programmed SoftDevice).
+		 *
+		 * nRF52840 flash: 1 MiB total
+		 *   0x00000000  Application   960 KiB
+		 *   0x000F0000  Storage        64 KiB
+		 */
+		slot0_partition: partition@0 {
+			label = "image-0";
+			reg = <0x00000000 0x000F0000>; /* 960 KiB */
+		};
+
+		storage_partition: partition@f0000 {
+			label = "storage";
+			reg = <0x000F0000 0x00010000>; /* 64 KiB */
+		};
+	};
+};
+
+&gpiote {
+	status = "okay";
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&uart0 {
+	compatible = "nordic,nrf-uarte";
+	status = "disabled"; /* Console via RTT; re-enable if UART needed */
+	current-speed = <115200>;
+	pinctrl-0 = <&uart0_default>;
+	pinctrl-1 = <&uart0_sleep>;
+	pinctrl-names = "default", "sleep";
+};

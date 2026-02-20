@@ -30,6 +30,7 @@ enable_language(C CXX ASM)
 include(${CMAKE_SOURCE_DIR}/projects/version.cmake)
 include(${CMAKE_SOURCE_DIR}/projects/warnings.cmake)
 include(${CMAKE_SOURCE_DIR}/projects/external.cmake)
+include(${CMAKE_SOURCE_DIR}/projects/sources.cmake)
 
 set(PLATFORM_CMAKE_FILE "${CMAKE_SOURCE_DIR}/projects/platforms/${TARGET_PLATFORM}.cmake")
 if (NOT EXISTS ${PLATFORM_CMAKE_FILE})

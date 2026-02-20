@@ -44,7 +44,7 @@ list(APPEND BOARD_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../ports/zephyr)
 
 # MCUboot signing key (must be set before find_package(Zephyr))
 set(MCUBOOT_SIGNATURE_KEY_FILE
-	"${CMAKE_CURRENT_LIST_DIR}/../../factory/secrets/dfu_signing_dev.key"
+	"${CMAKE_CURRENT_LIST_DIR}/../../secrets/dfu_signing_dev.key"
 	CACHE STRING "MCUboot signing key" FORCE)
 
 # Generate overlay file for freestanding app
