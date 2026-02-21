@@ -1,2 +1,2 @@
    text	   data	    bss	    dec	    hex	filename
-  30484	    144	  19800	  50428	   c4fc	build/template.elf
+  30632	    144	  20024	  50800	   c670	build/madi.elf
