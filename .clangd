@@ -1,2 +1,2 @@
 CompileFlags:
-  CompilationDatabase: build/madi_nrf52840
+  CompilationDatabase: build/app

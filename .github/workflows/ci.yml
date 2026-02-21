@@ -33,7 +33,7 @@ jobs:
           make clean
       - name: Build with CMake
         run: |
-          cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=projects/arm-none-eabi-gcc.cmake
+          cmake -S . -B build -DTARGET_PLATFORM=madi_nrf52840 -DCMAKE_TOOLCHAIN_FILE=projects/arch/arm/arm-none-eabi-gcc.cmake
           cmake --build build
       - name: Process Memory Usage
         continue-on-error: true
