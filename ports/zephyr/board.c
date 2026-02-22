@@ -11,12 +11,44 @@
 #include <zephyr/sys/reboot.h>
 #include <zephyr/drivers/hwinfo.h>
 #include <zephyr/random/random.h>
+#include <zephyr/usb/usb_device.h>
+#include <zephyr/drivers/usb/usb_dc.h>
+#include <zephyr/logging/log.h>
 
 #include <stdio.h>
 #include <string.h>
 
+LOG_MODULE_REGISTER(usb, LOG_LEVEL_INF);
+
+static void on_usb_status(enum usb_dc_status_code status,
+			  const uint8_t *param)
+{
+	ARG_UNUSED(param);
+
+	switch (status) {
+	case USB_DC_CONNECTED:
+		LOG_INF("USB connected");
+		break;
+	case USB_DC_CONFIGURED:
+		LOG_INF("USB CDC ACM ready");
+		break;
+	case USB_DC_DISCONNECTED:
+		LOG_INF("USB disconnected");
+		break;
+	case USB_DC_SUSPEND:
+		LOG_INF("USB suspended");
+		break;
+	case USB_DC_RESUME:
+		LOG_INF("USB resumed");
+		break;
+	default:
+		break;
+	}
+}
+
 void board_init(void)
 {
+	usb_enable(on_usb_status);
 }
 
 void board_reboot(void)
