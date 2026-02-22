@@ -59,6 +59,8 @@ message(STATUS "MCUboot signing key: ${MCUBOOT_SIGNATURE_KEY_FILE}")
 
 # Extract version from version.h for MCUboot image signing
 set(VERSION_H "${CMAKE_CURRENT_LIST_DIR}/../../include/version.h")
+# Reconfigure automatically when version.h changes
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${VERSION_H}")
 if(EXISTS "${VERSION_H}")
 	file(READ "${VERSION_H}" VERSION_H_CONTENTS)
 	string(REGEX MATCH "#define[ \t]+APP_VERSION_MAJOR[ \t]+([0-9]+)" _ "${VERSION_H_CONTENTS}")

@@ -80,12 +80,6 @@ sudo apt install ninja-build    # Ubuntu / Debian
 | `pyocd` | OpenOCD-based alternative to nrfjprog |
 | `mcumgr` | OTA / DFU over serial or BLE |
 
-Install mcumgr:
-
-```bash
-pip install mcumgr
-```
-
 ### 5. imgtool
 
 ```bash
@@ -102,6 +96,12 @@ Add to your shell profile (`.bashrc` / `.zshrc`) and reload:
 python3 -m venv ./.venv
 source ./.venv/bin/activate
 export PATH=.venv/bin:$PATH
+
+# Install the official mcumgr CLI (Go required)
+go install github.com/apache/mynewt-mcumgr-cli/mcumgr@latest
+
+# Add Go bin to PATH if needed
+export PATH="$(go env GOPATH)/bin:$PATH"
 
 export ZEPHYR_BASE=~/Work/c/zephyr/zephyr
 export ZEPHYR_TOOLCHAIN_VARIANT=gnuarmemb
@@ -261,26 +261,29 @@ pyocd flash -t nrf52840 --erase sector \
 
 ### OTA / DFU
 
-Upload the signed image to slot 1 and trigger a swap on next boot:
+The board exposes a USB CDC ACM port for mcumgr SMP. Connect the USB cable and
+wait for the RTT log to show `USB CDC ACM ready` before running commands.
+
+> **Port name**: `/dev/ttyACM0` on Linux, `/dev/tty.usbmodem*` on macOS.
 
 ```bash
 # Upload image to slot 1
-mcumgr --conntype serial --connstring /dev/ttyUSB0,baud=115200 \
+mcumgr --conntype serial --connstring /dev/ttyACM0,baud=115200 \
     image upload build/app/zephyr/zephyr.signed.bin
 
 # List images — copy the hash of the uploaded image
-mcumgr --conntype serial --connstring /dev/ttyUSB0,baud=115200 \
+mcumgr --conntype serial --connstring /dev/ttyACM0,baud=115200 \
     image list
 
 # Mark as pending (test mode — reverts if not confirmed before next reset)
-mcumgr --conntype serial --connstring /dev/ttyUSB0,baud=115200 \
+mcumgr --conntype serial --connstring /dev/ttyACM0,baud=115200 \
     image test <hash>
 
 # Trigger swap
-mcumgr --conntype serial --connstring /dev/ttyUSB0,baud=115200 reset
+mcumgr --conntype serial --connstring /dev/ttyACM0,baud=115200 reset
 
 # After the new image boots successfully, confirm it permanently
-mcumgr --conntype serial --connstring /dev/ttyUSB0,baud=115200 \
+mcumgr --conntype serial --connstring /dev/ttyACM0,baud=115200 \
     image confirm
 ```
 
@@ -411,6 +414,8 @@ make coverage
 ## Board Notes
 
 - **Board name**: `madi_nrf52840`
-- **Console**: RTT (Segger J-Link) — UART disabled by default
+- **Console**: RTT (Segger J-Link) — logging and shell via RTT
+- **USB**: USB CDC ACM — mcumgr SMP transport (`/dev/ttyACM0` on Linux, `/dev/tty.usbmodem*` on macOS)
+- **UART0**: TX=P0.23, RX=P0.25 — disabled (pinctrl defined but not in use)
 - **LED**: P0.20 (active-low, alias `led0`)
 - **QSPI flash**: CS=P0.07, SCK=P0.08, IO0=P1.09, IO1=P1.08, IO2=P0.12, IO3=P0.06
