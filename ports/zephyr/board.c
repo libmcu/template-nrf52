@@ -48,7 +48,12 @@ static void on_usb_status(enum usb_dc_status_code status,
 
 void board_init(void)
 {
-	usb_enable(on_usb_status);
+	int ret = usb_enable(on_usb_status);
+
+	if (ret != 0) {
+		LOG_ERR("Failed to enable USB (err %d)", ret);
+		return;
+	}
 }
 
 void board_reboot(void)
