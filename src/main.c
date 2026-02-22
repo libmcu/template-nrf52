@@ -11,6 +11,8 @@
 #include "pinmap.h"
 #include "logging.h"
 
+extern int ble_adv_start(void);
+
 int main(void)
 {
 	board_init(); /* should be called very first. */
@@ -22,6 +24,8 @@ int main(void)
 	info("[%s] %s %s", board_get_reboot_reason_string(reboot_reason),
 			board_get_serial_number_string(),
 			board_get_version_string());
+
+	ble_adv_start();
 
 	struct lm_gpio *led = lm_gpio_create(PINMAP_LED);
 	lm_gpio_enable(led);
