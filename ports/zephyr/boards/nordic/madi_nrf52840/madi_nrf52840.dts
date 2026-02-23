@@ -16,7 +16,8 @@
 		zephyr,sram           = &sram0;
 		zephyr,flash          = &flash0;
 		zephyr,code-partition = &slot0_partition;
-		zephyr,uart-mcumgr    = &cdc_acm_uart0; /* mcumgr SMP transport via USB CDC ACM */
+		zephyr,uart-mcumgr    = &cdc_acm_uart0;
+		nordic,pm-ext-flash   = &mx25r16;
 	};
 
 	leds {

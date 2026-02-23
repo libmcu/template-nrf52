@@ -20,8 +20,19 @@ if (NOT TARGET_PLATFORM)
 	endif()
 endif()
 
+# Strip board qualifiers (e.g. "madi_nrf52840/nrf52840" -> "madi_nrf52840").
+# BOARD from CMakeCache on re-runs or from sysbuild may include "/qualifier" or "@revision".
+# Must run unconditionally so both first-run and re-run produce a clean platform name.
+if (TARGET_PLATFORM MATCHES "[/@]")
+	string(REGEX REPLACE "[/@].*" "" TARGET_PLATFORM "${TARGET_PLATFORM}")
+endif()
 if (DEFINED ENV{ZEPHYR_TOOLCHAIN_VARIANT})
 	include(${CMAKE_SOURCE_DIR}/projects/platforms/zephyr.cmake)
+	# In NCS sysbuild first run, BOARD is empty before find_package(Zephyr).
+	# After include(zephyr.cmake), BOARD is set from sysbuild cache.
+	if (NOT TARGET_PLATFORM AND BOARD)
+		string(REGEX REPLACE "[/@].*" "" TARGET_PLATFORM "${BOARD}")
+	endif()
 elseif (NOT DEFINED CMAKE_TOOLCHAIN_FILE)
 	set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/projects/arch/arm/arm-none-eabi-gcc.cmake)
 endif()
