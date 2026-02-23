@@ -143,6 +143,18 @@ Output: `build/mcuboot/zephyr/zephyr.hex`
 
 ### 2. Build App
 
+#### NCS sysbuild
+
+```bash
+west build \
+    -b madi_nrf52840 \
+    -d build \
+    --sysbuild \
+    -- \
+    -DCONF_FILE=ports/zephyr/prj.conf \
+    -DBOARD_ROOT=ports/zephyr
+ ```
+
 #### west
 
 ```bash
