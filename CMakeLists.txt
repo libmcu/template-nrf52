@@ -37,6 +37,11 @@ elseif (NOT DEFINED CMAKE_TOOLCHAIN_FILE)
 	set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/projects/arch/arm/arm-none-eabi-gcc.cmake)
 endif()
 
+set(PLATFORM_PRE_CMAKE_FILE "${CMAKE_SOURCE_DIR}/projects/platforms/${TARGET_PLATFORM}-pre.cmake")
+if (EXISTS ${PLATFORM_PRE_CMAKE_FILE})
+	include(${PLATFORM_PRE_CMAKE_FILE})
+endif()
+
 project(madi)
 enable_language(C CXX ASM)
 
