@@ -1,3 +1,5 @@
 build
 .cache
 secrets
+sdkconfig
+managed_components

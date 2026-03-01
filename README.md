@@ -1,7 +1,7 @@
-# madi-nrf52
+# madi
 
-Firmware for MADI nRF52840 (Cortex-M4F). Zephyr-based with MCUboot bootloader,
-external QSPI NOR flash for OTA updates, and automatic rollback on boot failure.
+Firmware for MADI devices across multiple MCU targets and platform stacks.
+This repository supports nRF52 (Zephyr/nRF5 SDK) and ESP32-class targets (ESP-IDF) with a shared, port-based architecture.
 
 ## Project Structure
 
@@ -39,40 +39,42 @@ Key files:
 
 ## Prerequisites
 
-### 1. Zephyr workspace
+### Zephyr / nRF52
+
+#### 1. Zephyr workspace
 
 Install the Zephyr SDK outside this repo using
 [west](https://docs.zephyrproject.org/latest/develop/getting_started/index.html):
 
 ```bash
-west init ~/Work/c/zephyr
-cd ~/Work/c/zephyr
+west init $HOME/zephyr
+cd $HOME/zephyr
 west update
 ```
 
 Expected layout:
 
 ```
-~/Work/c/zephyr/
+$HOME/zephyr/
 ├── zephyr/          # Zephyr kernel ($ZEPHYR_BASE)
 ├── modules/         # hal_nordic, mbedtls, littlefs, segger …
 └── bootloader/      # mcuboot
 ```
 
-### 2. ARM GNU Toolchain (GCC 12+)
+#### 2. ARM GNU Toolchain (GCC 12+)
 
 Download **arm-none-eabi** from
 [developer.arm.com](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads)
 and extract, e.g. to `~/.local/gcc-arm-none-eabi/`.
 
-### 3. Build tools
+#### 3. Build tools
 
 ```bash
 brew install ninja              # macOS
 sudo apt install ninja-build    # Ubuntu / Debian
 ```
 
-### 4. Flash tools
+#### 4. Flash tools
 
 | Tool | Use |
 |------|-----|
@@ -80,41 +82,88 @@ sudo apt install ninja-build    # Ubuntu / Debian
 | `pyocd` | OpenOCD-based alternative to nrfjprog |
 | `mcumgr` | OTA / DFU over serial or BLE |
 
-### 5. imgtool
+#### 5. imgtool
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+export PATH=.venv/bin:$PATH
+
+export ZEPHYR_BASE=$HOME/zephyr/zephyr
+export ZEPHYR_TOOLCHAIN_VARIANT=gnuarmemb
+export GNUARMEMB_TOOLCHAIN_PATH=~/.local/gcc-arm-none-eabi
+```
 
 ```bash
 pip install -r $ZEPHYR_BASE/../bootloader/mcuboot/scripts/requirements.txt
+```
+
+#### 6. Zephyr Python requirements (required for `west build`)
+
+Install Zephyr script dependencies in the active Python environment:
+
+```bash
+pip install -r $ZEPHYR_BASE/scripts/requirements.txt
+```
+
+> Missing this step commonly fails with `ModuleNotFoundError` (for example
+> `pykwalify`) during board discovery.
+
+### ESP-IDF / ESP32-P4
+
+#### 1. ESP-IDF checkout and tools path
+
+- IDF root (example): `$HOME/esp/esp-idf`
+- tools path (default `IDF_TOOLS_PATH`): `$HOME/.espressif`
+
+#### 2. Build tools
+
+```bash
+brew install ninja              # macOS
+sudo apt install ninja-build    # Ubuntu / Debian
 ```
 
 ---
 
 ## Environment Setup
 
+### Zephyr / nRF52
+
 Add to your shell profile (`.bashrc` / `.zshrc`) and reload:
 
 ```bash
-python3 -m venv ./.venv
-source ./.venv/bin/activate
+source .venv/bin/activate
 export PATH=.venv/bin:$PATH
+
+export ZEPHYR_BASE=$HOME/zephyr/zephyr
+export ZEPHYR_TOOLCHAIN_VARIANT=gnuarmemb
+export GNUARMEMB_TOOLCHAIN_PATH=~/.local/gcc-arm-none-eabi
 
 # Install the official mcumgr CLI (Go required)
 go install github.com/apache/mynewt-mcumgr-cli/mcumgr@latest
 
 # Add Go bin to PATH if needed
 export PATH="$(go env GOPATH)/bin:$PATH"
+```
 
-export ZEPHYR_BASE=~/Work/c/zephyr/zephyr
-export ZEPHYR_TOOLCHAIN_VARIANT=gnuarmemb
-export GNUARMEMB_TOOLCHAIN_PATH=~/.local/gcc-arm-none-eabi
+### ESP-IDF / ESP32-P4
+
+Run before ESP32 build/flash commands:
+
+```bash
+export IDF_TOOLS_PATH=$HOME/.espressif
+source $HOME/esp/esp-idf/export.sh
 ```
 
 ---
 
 ## Initial Setup
 
+### Zephyr / nRF52
+
 Build MCUboot and the app, then flash everything to a blank device.
 
-### 1. Build MCUboot
+#### 1. Build MCUboot
 
 #### west
 
@@ -141,7 +190,7 @@ cmake --build build/mcuboot
 
 Output: `build/mcuboot/zephyr/zephyr.hex`
 
-### 2. Build App
+#### 2. Build App
 
 #### NCS sysbuild
 
@@ -159,23 +208,23 @@ west build \
 
 ```bash
 # First time — configure and build
-west build -b madi_nrf52840 -d build/app
+west build -b madi_nrf52840 -d build
 # or
-west build -b madi_nrf52840 -d build/app \
+west build -b madi_nrf52840 -d build \
     -- -DBOARD_ROOT=$(pwd)/ports/zephyr
 
 # Subsequent builds — configuration is cached
-west build -d build/app
+west build -d build
 ```
 
 #### CMake
 
 ```bash
-cmake -B build/app -DTARGET_PLATFORM=madi_nrf52840 -G Ninja
-cmake --build build/app
+cmake -B build -DTARGET_PLATFORM=madi_nrf52840 -G Ninja
+cmake --build build
 ```
 
-Signed outputs in `build/app/zephyr/`:
+Signed outputs in `build/zephyr/`:
 
 | File | Use |
 |------|-----|
@@ -183,7 +232,7 @@ Signed outputs in `build/app/zephyr/`:
 | `zephyr.signed.bin` | Signed binary for OTA upload |
 | `zephyr.signed.confirmed.hex` | Pre-confirmed — no runtime confirmation needed |
 
-### 3. Flash (first-time)
+#### 3. Flash (first-time)
 
 #### nrfjprog
 
@@ -196,7 +245,7 @@ nrfjprog --family NRF52 --program build/mcuboot/zephyr/zephyr.hex --verify
 
 # Flash confirmed app to slot0 (--sectorerase preserves MCUboot at 0x0)
 nrfjprog --family NRF52 \
-    --program build/app/zephyr/zephyr.signed.confirmed.hex \
+    --program build/zephyr/zephyr.signed.confirmed.hex \
     --verify --sectorerase
 
 nrfjprog --family NRF52 --reset
@@ -207,7 +256,7 @@ nrfjprog --family NRF52 --reset
 ```bash
 nrfjprog --family NRF52 --eraseall
 west flash -d build/mcuboot
-west flash -d build/app
+west flash -d build
 ```
 
 #### pyocd
@@ -215,7 +264,25 @@ west flash -d build/app
 ```bash
 pyocd flash -t nrf52840 --erase chip build/mcuboot/zephyr/zephyr.hex
 pyocd flash -t nrf52840 --erase sector \
-    build/app/zephyr/zephyr.signed.confirmed.hex
+    build/zephyr/zephyr.signed.confirmed.hex
+```
+
+### ESP-IDF / ESP32-P4 (`jc8012wp4a1`)
+
+Build (choose one):
+
+```bash
+idf.py -B build -DTARGET_PLATFORM=jc8012wp4a1 build
+```
+
+```bash
+cmake -B build -DTARGET_PLATFORM=jc8012wp4a1 -G Ninja && cmake --build build
+```
+
+Flash and monitor:
+
+```bash
+idf.py -B build -DTARGET_PLATFORM=jc8012wp4a1 flash monitor
 ```
 
 ---
@@ -229,13 +296,13 @@ MCUboot stays on the device. Only rebuild and reflash the app.
 #### west
 
 ```bash
-west build -d build/app
+west build -d build
 ```
 
 #### CMake
 
 ```bash
-cmake --build build/app
+cmake --build build
 ```
 
 #### Make (nRF5 SDK — no MCUboot)
@@ -253,7 +320,7 @@ make
 
 ```bash
 nrfjprog --family NRF52 \
-    --program build/app/zephyr/zephyr.signed.confirmed.hex \
+    --program build/zephyr/zephyr.signed.confirmed.hex \
     --verify --sectorerase
 nrfjprog --family NRF52 --reset
 ```
@@ -261,14 +328,14 @@ nrfjprog --family NRF52 --reset
 #### west
 
 ```bash
-west flash -d build/app
+west flash -d build
 ```
 
 #### pyocd
 
 ```bash
 pyocd flash -t nrf52840 --erase sector \
-    build/app/zephyr/zephyr.signed.confirmed.hex
+    build/zephyr/zephyr.signed.confirmed.hex
 ```
 
 ### OTA / DFU
@@ -281,7 +348,7 @@ wait for the RTT log to show `USB CDC ACM ready` before running commands.
 ```bash
 # Upload image to slot 1
 mcumgr --conntype serial --connstring /dev/ttyACM0,baud=115200 \
-    image upload build/app/zephyr/zephyr.signed.bin
+    image upload build/zephyr/zephyr.signed.bin
 
 # List images — copy the hash of the uploaded image
 mcumgr --conntype serial --connstring /dev/ttyACM0,baud=115200 \
