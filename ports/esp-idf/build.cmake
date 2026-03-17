@@ -38,7 +38,7 @@ idf_build_process(${IDF_TARGET}
 	COMPONENTS
 		${COMPONENTS_USED}
 	SDKCONFIG_DEFAULTS
-		"${CMAKE_CURRENT_LIST_DIR}/sdkconfig.defaults"
+		"${CMAKE_CURRENT_LIST_DIR}/boards/${TARGET_PLATFORM}/sdkconfig.defaults"
 	BUILD_DIR
 		${CMAKE_CURRENT_BINARY_DIR}
 )

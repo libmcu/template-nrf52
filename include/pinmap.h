@@ -11,7 +11,15 @@
 extern "C" {
 #endif
 
-#define PINMAP_LED			20 /* P0.20 */
+#if defined(TARGET_PLATFORM_madi_nrf52840)
+#include "../ports/nrf52/pinmap.h"
+#elif defined(TARGET_PLATFORM_madi_esp32s3)
+#include "../ports/esp-idf/boards/madi_esp32s3/pinmap.h"
+#elif defined(TARGET_PLATFORM_jc8012wp4a1)
+#include "../ports/esp-idf/boards/jc8012wp4a1/pinmap.h"
+#else
+#error "Unsupported TARGET_PLATFORM"
+#endif
 
 #if defined(__cplusplus)
 }

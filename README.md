@@ -109,7 +109,7 @@ pip install -r $ZEPHYR_BASE/scripts/requirements.txt
 > Missing this step commonly fails with `ModuleNotFoundError` (for example
 > `pykwalify`) during board discovery.
 
-### ESP-IDF / ESP32-P4
+### ESP-IDF
 
 #### 1. ESP-IDF checkout and tools path
 
@@ -127,7 +127,7 @@ sudo apt install ninja-build    # Ubuntu / Debian
 
 ## Environment Setup
 
-### Zephyr / nRF52
+### Zephyr
 
 Add to your shell profile (`.bashrc` / `.zshrc`) and reload:
 
@@ -146,7 +146,7 @@ go install github.com/apache/mynewt-mcumgr-cli/mcumgr@latest
 export PATH="$(go env GOPATH)/bin:$PATH"
 ```
 
-### ESP-IDF / ESP32-P4
+### ESP-IDF
 
 Run before ESP32 build/flash commands:
 
@@ -159,7 +159,7 @@ source $HOME/esp/esp-idf/export.sh
 
 ## Initial Setup
 
-### Zephyr / nRF52
+### Zephyr
 
 Build MCUboot and the app, then flash everything to a blank device.
 
@@ -210,8 +210,7 @@ west build \
 # First time — configure and build
 west build -b madi_nrf52840 -d build
 # or
-west build -b madi_nrf52840 -d build \
-    -- -DBOARD_ROOT=$(pwd)/ports/zephyr
+west build -b madi_nrf52840 -d build -- -DBOARD_ROOT=$(pwd)/ports/zephyr
 
 # Subsequent builds — configuration is cached
 west build -d build
@@ -267,7 +266,7 @@ pyocd flash -t nrf52840 --erase sector \
     build/zephyr/zephyr.signed.confirmed.hex
 ```
 
-### ESP-IDF / ESP32-P4 (`jc8012wp4a1`)
+### ESP-IDF
 
 Build (choose one):
 
