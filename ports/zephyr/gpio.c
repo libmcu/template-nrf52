@@ -80,8 +80,7 @@ static const struct lm_gpio_api gpio_api = {
 	.register_callback = register_callback,
 };
 
-static const struct gpio_dt_spec led_spec =
-	GPIO_DT_SPEC_GET(LED0_NODE, gpios);
+static const struct gpio_dt_spec led_spec = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 static struct lm_gpio led_gpio;
 
 struct lm_gpio *lm_gpio_create(uint16_t pin)

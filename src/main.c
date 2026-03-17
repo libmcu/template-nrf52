@@ -6,9 +6,11 @@
 
 #include "libmcu/board.h"
 #include "libmcu/timext.h"
+#include "libmcu/gpio.h"
 
 #include "logging.h"
 #include "console_sync.h"
+#include "pinmap.h"
 
 int main(void)
 {
@@ -23,8 +25,11 @@ int main(void)
 			board_get_serial_number_string(),
 			board_get_version_string());
 
+	struct lm_gpio *led = lm_gpio_create(PINMAP_LED);
+	lm_gpio_enable(led);
+
 	while (1) {
-		debug("Hello, World!");
+		lm_gpio_set(led, lm_gpio_get(led) ^ 1);
 		sleep_ms(500);
 	}
 
