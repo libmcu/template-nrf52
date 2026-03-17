@@ -26,7 +26,7 @@ static void on_gpio_interrupt(void *arg)
 {
 	struct lm_gpio *gpio = (struct lm_gpio *)arg;
 
-        if (gpio->callback) {
+	if (gpio->callback) {
 		(*gpio->callback)(gpio, gpio->callback_ctx);
 	}
 }

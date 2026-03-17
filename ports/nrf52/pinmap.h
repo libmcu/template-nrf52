@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-#ifndef PINMAP_MADI_nRF52840_H
-#define PINMAP_MADI_nRF52840_H
+#ifndef PINMAP_MADI_NRF52840_H
+#define PINMAP_MADI_NRF52840_H
 
 #if defined(__cplusplus)
 extern "C" {
@@ -17,4 +17,4 @@ extern "C" {
 }
 #endif
 
-#endif /* PINMAP_MADI_nRF52840_H */
+#endif /* PINMAP_MADI_NRF52840_H */
