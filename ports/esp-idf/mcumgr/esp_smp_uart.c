@@ -19,6 +19,7 @@
 #include "mbedtls/base64.h"
 #include "esp_log.h"
 #include "mgmt/mgmt.h"
+#include "libmcu/crc16.h"
 
 #define TAG "smp_transport"
 
@@ -60,20 +61,6 @@ struct esp_smp_ctx {
 
 static struct esp_smp_ctx s_ctx;
 
-static uint16_t crc16_ccitt(const uint8_t *data, size_t len)
-{
-	uint16_t crc = 0;
-	while (len--) {
-		crc ^= (uint16_t)(*data++) << 8;
-		for (int i = 0; i < 8; i++) {
-			crc = (crc & 0x8000U)
-				? (uint16_t)((crc << 1) ^ 0x1021U)
-				: (uint16_t)(crc << 1);
-		}
-	}
-	return crc;
-}
-
 static int phy_write(const uint8_t *data, size_t len)
 {
 #if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
@@ -97,7 +84,7 @@ int esp_smp_transport_send(const void *data, size_t len)
 	ctx->tx_frame[0] = (uint8_t)(len >> 8);
 	ctx->tx_frame[1] = (uint8_t)(len & 0xFFU);
 	memcpy(ctx->tx_frame + 2, data, len);
-	uint16_t crc = crc16_ccitt((const uint8_t *)data, len);
+	uint16_t crc = crc16_xmodem(data, len);
 	ctx->tx_frame[2 + len]     = (uint8_t)(crc >> 8);
 	ctx->tx_frame[2 + len + 1] = (uint8_t)(crc & 0xFFU);
 
@@ -152,7 +139,7 @@ static bool process_rx_frame(struct esp_smp_ctx *ctx)
 	}
 
 	const uint8_t *pkt_data = ctx->decoded + 2;
-	if (crc16_ccitt(pkt_data, pkt_len) != 0U) {
+	if (crc16_xmodem(pkt_data, pkt_len) != 0U) {
 		ESP_LOGE(TAG, "CRC mismatch");
 		ctx->rx_frame_len = 0;
 		return true;
@@ -173,7 +160,7 @@ static bool process_rx_frame(struct esp_smp_ctx *ctx)
 
 static void rx_task(void *param)
 {
-	struct esp_smp_ctx *ctx = param;
+	struct esp_smp_ctx *ctx = (struct esp_smp_ctx *)param;
 	uint8_t byte;
 	enum rx_state state = WAIT_HDR1;
 	uint8_t expected_hdr2 = 0;
