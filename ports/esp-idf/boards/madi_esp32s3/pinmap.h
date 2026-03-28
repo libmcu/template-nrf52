@@ -13,6 +13,11 @@ extern "C" {
 
 #define PINMAP_LED                     35
 
+struct lm_gpio;
+struct pinmap_periph {
+	struct lm_gpio *led;
+};
+
 #if defined(__cplusplus)
 }
 #endif

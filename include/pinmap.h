@@ -21,6 +21,14 @@ extern "C" {
 #error "Unsupported TARGET_PLATFORM"
 #endif
 
+/**
+ * @brief Initialize the peripheral described by the pinmap.
+ *
+ * @param[in] periph Pointer to the pinmap_periph structure.
+ * @return 0 on success, negative value on error.
+ */
+int pinmap_init(struct pinmap_periph *periph);
+
 #if defined(__cplusplus)
 }
 #endif
