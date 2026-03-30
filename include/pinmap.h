@@ -21,6 +21,11 @@ extern "C" {
 #error "Unsupported TARGET_PLATFORM"
 #endif
 
+struct lm_gpio;
+struct pinmap_periph {
+	struct lm_gpio *led;
+};
+
 /**
  * @brief Initialize the peripheral described by the pinmap.
  *
