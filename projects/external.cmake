@@ -1,4 +1,6 @@
 add_subdirectory(external/libmcu)
+add_subdirectory(external/cbor)
+add_subdirectory(ports/mcumgr)
 
 if(APPLE)
 	set(LIBMCU_NOINIT __attribute__\(\(section\(\"__DATA,.noinit.libmcu\"\)\)\))

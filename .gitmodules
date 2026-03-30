@@ -1,3 +1,9 @@
 [submodule "external/libmcu"]
 	path = external/libmcu
 	url = https://github.com/libmcu/libmcu.git
+[submodule "external/cbor"]
+	path = external/cbor
+	url = https://github.com/libmcu/cbor.git
+[submodule "external/mynewt-mcumgr"]
+	path = external/mynewt-mcumgr
+	url = https://github.com/libmcu/mynewt-mcumgr.git

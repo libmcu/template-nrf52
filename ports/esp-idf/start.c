@@ -11,7 +11,6 @@
 #include "nvs_flash.h"
 #include "esp_event.h"
 #include "esp_system.h"
-#include "driver/gpio.h"
 
 #if defined(CONFIG_MBEDTLS_CUSTOM_MEM_ALLOC)
 #include "mbedtls/platform.h"
@@ -58,7 +57,6 @@ static void esp_init(void)
 	}
 
 	esp_event_loop_create_default();
-	gpio_install_isr_service(0);
 
 #if defined(CONFIG_MBEDTLS_CUSTOM_MEM_ALLOC)
 	mbedtls_platform_set_calloc_free(tls_calloc, tls_free);

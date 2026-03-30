@@ -27,6 +27,9 @@ list(APPEND PORT_SRCS
 	${LIBMCU_ROOT}/ports/esp-idf/spi.c
 	${LIBMCU_ROOT}/ports/esp-idf/apptmr.c
 	${LIBMCU_ROOT}/ports/esp-idf/wdt.c
+	${LIBMCU_ROOT}/ports/esp-idf/mcumgr/mgmt_esp.c
+	${LIBMCU_ROOT}/ports/esp-idf/mcumgr/mgmt_img_esp.c
+	${LIBMCU_ROOT}/ports/esp-idf/mcumgr/mgmt_os_esp.c
 	${LIBMCU_ROOT}/ports/freertos/timext.c
 	${LIBMCU_ROOT}/ports/posix/logging.c
 	${LIBMCU_ROOT}/ports/posix/button.c
@@ -56,12 +59,15 @@ target_include_directories(${PROJECT_EXECUTABLE}
 		$ENV{IDF_PATH}/components/freertos/FreeRTOS-Kernel/include/freertos
 
 		${LIBMCU_ROOT}/ports/mbedtls/include
+
+		${CMAKE_SOURCE_DIR}/ports/esp-idf/mcumgr
 )
 
 target_link_libraries(${PROJECT_EXECUTABLE}
 	warnings
 
 	libmcu
+	mcumgr
 )
 
 target_compile_options(warnings INTERFACE
