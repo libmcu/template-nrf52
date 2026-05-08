@@ -18,7 +18,6 @@ else()
 endif()
 
 target_compile_definitions(libmcu PUBLIC
-	_POSIX_THREADS
 	_POSIX_C_SOURCE=200809L
 	LIBMCU_NOINIT=${LIBMCU_NOINIT}
 	METRICS_USER_DEFINES=\"${PROJECT_SOURCE_DIR}/include/metrics.def\"
@@ -30,3 +29,9 @@ target_compile_definitions(libmcu PUBLIC
 
 	${APP_DEFS}
 )
+
+if(NOT DEFINED ENV{ZEPHYR_TOOLCHAIN_VARIANT})
+	target_compile_definitions(libmcu PUBLIC
+		_POSIX_THREADS
+	)
+endif()

@@ -13,6 +13,7 @@ PLATFORM_SPECIFIC := $(PORT_ROOT)/platform.mk
 
 # Third Party
 LIBMCU_ROOT ?= $(BASEDIR)/external/libmcu
+LIBMCU_RATELIM_PORT := stubs
 include $(LIBMCU_ROOT)/project/modules.mk
 include $(LIBMCU_ROOT)/project/interfaces.mk
 
