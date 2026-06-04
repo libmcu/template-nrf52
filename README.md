@@ -124,8 +124,9 @@ sudo apt install ninja-build    # Ubuntu / Debian
 #### 3. Adding ESP-IDF Components
 
 - For ESP-IDF components provided by ESP-IDF, add the component name to `madi_idf_required_components` in `ports/esp-idf/components/madi_idf_deps/CMakeLists.txt`.
-- For managed components from the ESP Component Registry, add the dependency to the `dependencies` section in `ports/esp-idf/components/madi_idf_deps/idf_component.yml`.
-- For project components, add a component directory under `ports/esp-idf/components/<name>/` with its own `CMakeLists.txt`. `build.cmake` registers these components automatically.
+- For managed components from the ESP Component Registry, create or update `ports/esp-idf/components/madi_idf_deps/idf_component.yml` and add the dependency to its `dependencies` section.
+- For project components, add a component directory under `ports/esp-idf/components/<name>/` with its own `CMakeLists.txt`, then add the component name to `madi_idf_required_components` or to another component's requirements so it is included in `BUILD_COMPONENTS`.
+- `build.cmake` registers project component directories automatically, but `idf_build_process()` builds only `madi_idf_deps` and its dependency graph.
 - The application executable is linked from the `BUILD_COMPONENTS` computed by ESP-IDF. Do not add `idf::...` link entries manually in `ports/esp-idf/build.cmake`.
 
 Example:

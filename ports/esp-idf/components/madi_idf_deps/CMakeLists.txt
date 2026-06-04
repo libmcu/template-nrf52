@@ -25,12 +25,13 @@ set(madi_idf_required_components
 	tcp_transport
 )
 
-set(madi_idf_version "$ENV{IDF_VERSION}")
-if (NOT madi_idf_version AND DEFINED IDF_VERSION_MAJOR)
+if (DEFINED IDF_VERSION_MAJOR AND DEFINED IDF_VERSION_MINOR AND DEFINED IDF_VERSION_PATCH)
 	set(madi_idf_version "${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}.${IDF_VERSION_PATCH}")
+elseif (DEFINED ENV{IDF_VERSION})
+	string(REGEX MATCH "[0-9]+(\\.[0-9]+){0,2}" madi_idf_version "$ENV{IDF_VERSION}")
 endif()
 
-if (NOT madi_idf_version OR madi_idf_version VERSION_GREATER_EQUAL "5.0.0")
+if (madi_idf_version VERSION_GREATER_EQUAL "5.0.0")
 	list(APPEND madi_idf_required_components esp_adc)
 else()
 	list(APPEND madi_idf_required_components esp_adc_cal)
