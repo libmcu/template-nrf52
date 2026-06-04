@@ -35,8 +35,6 @@ Key files:
 | `ports/zephyr/mcuboot.conf` | MCUboot Kconfig (signature algorithm, swap, QSPI) |
 | `projects/platforms/zephyr.cmake` | Signing key path, Zephyr module list |
 
----
-
 ## Prerequisites
 
 ### Zephyr / nRF52
@@ -123,7 +121,21 @@ brew install ninja              # macOS
 sudo apt install ninja-build    # Ubuntu / Debian
 ```
 
----
+#### 3. Adding ESP-IDF Components
+
+- For ESP-IDF components provided by ESP-IDF, add the component name to `madi_idf_required_components` in `ports/esp-idf/components/madi_idf_deps/CMakeLists.txt`.
+- For managed components from the ESP Component Registry, create or update `ports/esp-idf/components/madi_idf_deps/idf_component.yml` and add the dependency to its `dependencies` section.
+- For project components, add a component directory under `ports/esp-idf/components/<name>/` with its own `CMakeLists.txt`, then add the component name to `madi_idf_required_components` or to another component's requirements so it is included in `BUILD_COMPONENTS`.
+- `build.cmake` registers project component directories automatically, but `idf_build_process()` builds only `madi_idf_deps` and its dependency graph.
+- The application executable is linked from the `BUILD_COMPONENTS` computed by ESP-IDF. Do not add `idf::...` link entries manually in `ports/esp-idf/build.cmake`.
+
+Example:
+
+```yaml
+# ports/esp-idf/components/madi_idf_deps/idf_component.yml
+dependencies:
+  espressif/example_component: "^1.0.0"
+```
 
 ## Environment Setup
 
@@ -154,8 +166,6 @@ Run before ESP32 build/flash commands:
 export IDF_TOOLS_PATH=$HOME/.espressif
 source $HOME/esp/esp-idf/export.sh
 ```
-
----
 
 ## Initial Setup
 
@@ -284,8 +294,6 @@ Flash and monitor:
 idf.py -B build -DTARGET_PLATFORM=jc8012wp4a1 flash monitor
 ```
 
----
-
 ## Development Workflow
 
 MCUboot stays on the device. Only rebuild and reflash the app.
@@ -374,8 +382,6 @@ boot_write_img_confirmed();   /* requires CONFIG_MCUBOOT_IMG_MANAGER=y */
 > **Rollback**: If confirmation is not received before the next reset,
 > MCUboot automatically reverts to the previous image in slot 0.
 
----
-
 ## Flash Partition Layout
 
 | Flash | Partition | Label | Offset | Size |
@@ -387,8 +393,6 @@ boot_write_img_confirmed();   /* requires CONFIG_MCUBOOT_IMG_MANAGER=y */
 
 MCUboot uses **swap-using-move**: slot 0 and slot 1 must be identical in size
 (976 KiB). No scratch partition is required.
-
----
 
 ## Signing Key
 
@@ -445,8 +449,6 @@ Update two places:
 Rebuild and reflash MCUboot after any key or algorithm change — the old
 bootloader rejects images signed with a different key.
 
----
-
 ## Legacy Build (nRF5 SDK)
 
 Standalone build without Zephyr or MCUboot, targeting the nRF5 SDK directly.
@@ -486,8 +488,6 @@ cmake --build build --target flash_softdevice
 make test
 make coverage
 ```
-
----
 
 ## Board Notes
 

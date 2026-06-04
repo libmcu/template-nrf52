@@ -64,10 +64,11 @@ target_include_directories(${PROJECT_EXECUTABLE}
 )
 
 target_link_libraries(${PROJECT_EXECUTABLE}
-	warnings
+	PRIVATE
+		warnings
 
-	libmcu
-	mcumgr
+		libmcu
+		mcumgr
 )
 
 target_compile_options(warnings INTERFACE
