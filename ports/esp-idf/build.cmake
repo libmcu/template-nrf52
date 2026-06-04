@@ -1,23 +1,25 @@
 # SPDX-License-Identifier: MIT
 
-set(COMPONENTS_USED
-	esp_psram
-	freertos
-	remote_wifi_host
-	esp_eth
-	esptool_py
-	nvs_sec_provider
-	mbedtls
-	bt
-	tcp_transport
-	esp-tls
-	esp_http_server
-	esp_http_client
-	esp_https_ota
-	app_update
-	espcoredump
-	efuse
-)
+function(madi_idf_register_local_components)
+	file(GLOB local_component_cmakelists CONFIGURE_DEPENDS
+		"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/components/*/CMakeLists.txt"
+	)
+
+	foreach(component_cmakelist IN LISTS local_component_cmakelists)
+		get_filename_component(component_dir "${component_cmakelist}" DIRECTORY)
+		idf_build_component("${component_dir}")
+	endforeach()
+endfunction()
+
+function(madi_idf_link_build_components target)
+	idf_build_get_property(build_components BUILD_COMPONENTS)
+
+	foreach(component IN LISTS build_components)
+		if (TARGET idf::${component})
+			target_link_libraries(${target} idf::${component})
+		endif()
+	endforeach()
+endfunction()
 
 # Enable component manager in the freestanding idf_build_process flow.
 set(ENV{IDF_TARGET} ${IDF_TARGET})
@@ -25,18 +27,11 @@ idf_build_set_property(IDF_COMPONENT_MANAGER 1)
 idf_build_set_property(__COMPONENT_MANAGER_INTERFACE_VERSION 4)
 idf_build_set_property(DEPENDENCIES_LOCK "${CMAKE_BINARY_DIR}/dependencies.lock")
 
-# Register local component that declares esp_wifi_remote dependencies.
-idf_build_component("${CMAKE_CURRENT_LIST_DIR}/components/remote_wifi_host")
-
-if ($ENV{IDF_VERSION} VERSION_GREATER_EQUAL "5.0.0")
-	list(APPEND COMPONENTS_USED esp_adc)
-else()
-	list(APPEND COMPONENTS_USED esp_adc_cal)
-endif()
+madi_idf_register_local_components()
 
 idf_build_process(${IDF_TARGET}
 	COMPONENTS
-		${COMPONENTS_USED}
+		madi_idf_deps
 	PROJECT_VER
 		"${PROJECT_VER}"
 	SDKCONFIG_DEFAULTS
@@ -59,34 +54,12 @@ configure_file("${IDF_PATH}/tools/cmake/project_description.json.in"
 idf_build_set_property(COMPILE_DEFINITIONS -DxPortIsInsideInterrupt=xPortInIsrContext APPEND)
 idf_build_set_property(C_COMPILE_OPTIONS "-Wno-implicit-function-declaration" APPEND)
 
-target_link_libraries(${PROJECT_EXECUTABLE}
-	idf::esp_psram
-	idf::freertos
-	idf::spi_flash
-	idf::nvs_flash
-	idf::nvs_sec_provider
-	idf::driver
-	idf::pthread
-	idf::esp_eth
-	idf::tcp_transport
-	idf::mbedtls
-	idf::esp_http_server
-	idf::esp_http_client
-	idf::esp_https_ota
-	idf::app_update
-	idf::esp_timer
-	idf::esp_wifi
-	idf::espcoredump
-	idf::efuse
-
-	"-Wl,--cref"
-	"-Wl,--Map=${mapfile}"
+madi_idf_link_build_components(${PROJECT_EXECUTABLE})
+target_link_options(${PROJECT_EXECUTABLE}
+	PRIVATE
+		"-Wl,--cref"
+		"-Wl,--Map=${mapfile}"
 )
-if ($ENV{IDF_VERSION} VERSION_GREATER_EQUAL "5.0.0")
-target_link_libraries(${PROJECT_EXECUTABLE} idf::esp_adc)
-else()
-target_link_libraries(${PROJECT_EXECUTABLE} idf::esp_adc_cal)
-endif()
 
 if(NOT Python3_EXECUTABLE)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
