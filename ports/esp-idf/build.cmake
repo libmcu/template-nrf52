@@ -16,7 +16,7 @@ function(madi_idf_link_build_components target)
 
 	foreach(component IN LISTS build_components)
 		if (TARGET idf::${component})
-			target_link_libraries(${target} idf::${component})
+			target_link_libraries(${target} PRIVATE idf::${component})
 		endif()
 	endforeach()
 endfunction()
